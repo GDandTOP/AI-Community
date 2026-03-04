@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 헬퍼 함수
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    // users 컬렉션
+    match /users/{userId} {
+      allow read: if true;  // 모든 사용자 프로필 읽기 가능
+      allow create: if isOwner(userId);  // 본인 프로필만 생성
+      allow update: if isOwner(userId);  // 본인 프로필만 수정
+      allow delete: if false;  // 삭제 불가
+    }
+    
+    // posts 컬렉션
+    match /posts/{postId} {
+      // 읽기: 공개되고 삭제되지 않은 게시글만
+      allow read: if resource.data.isPublished == true && 
+                     resource.data.isDeleted == false;
+      // 생성: 로그인한 사용자, 본인 ID로만
+      allow create: if isSignedIn() && 
+                       request.resource.data.authorId == request.auth.uid;
+      // 수정: 작성자만
+      allow update: if isOwner(resource.data.authorId);
+      // 삭제: 작성자만
+      allow delete: if isOwner(resource.data.authorId);
+      
+      // comments 서브컬렉션
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn() && 
+                         request.resource.data.authorId == request.auth.uid;
+        allow update: if isOwner(resource.data.authorId);
+        allow delete: if isOwner(resource.data.authorId);
+      }
+    }
+    
+    // likes 컬렉션 (기존, 향후 제거 가능)
+    match /likes/{likeId} {
+      allow read: if true;
+      allow create: if isSignedIn() && 
+                       likeId == request.auth.uid + '_' + request.resource.data.postId;
+      allow delete: if isSignedIn() && 
+                       likeId.matches(request.auth.uid + '_.*');
+    }
+    
+    // postLikes 컬렉션 (게시글 좋아요)
+    match /postLikes/{likeId} {
+      allow read: if true;  // 모든 사용자가 읽기 가능
+      allow create: if isSignedIn() && 
+                       request.resource.data.userId == request.auth.uid &&
+                       likeId == request.auth.uid + '_' + request.resource.data.postId;
+      allow delete: if isSignedIn() && 
+                       likeId.matches(request.auth.uid + '_.*');
+    }
+    
+    // bookmarks 컬렉션 (게시글 북마크)
+    match /bookmarks/{bookmarkId} {
+      allow read: if isSignedIn();  // 로그인한 사용자만 읽기 가능
+      allow create: if isSignedIn() && 
+                       request.resource.data.userId == request.auth.uid &&
+                       bookmarkId == request.auth.uid + '_' + request.resource.data.postId;
+      allow delete: if isSignedIn() && 
+                       bookmarkId.matches(request.auth.uid + '_.*');
+    }
+  }
+}
+

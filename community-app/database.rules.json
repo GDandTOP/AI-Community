@@ -1,0 +1,26 @@
+{
+  "rules": {
+    "chatRooms": {
+      ".read": "auth != null",
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "messages": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        ".indexOn": ["timestamp", "senderId"]
+      }
+    },
+    "userChats": {
+      "$userId": {
+        ".read": "auth != null && auth.uid === $userId",
+        ".write": "auth != null && auth.uid === $userId",
+        ".indexOn": ["updatedAt", "lastMessageTimestamp"]
+      }
+    }
+  }
+}
+

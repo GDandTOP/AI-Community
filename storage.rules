@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // 프로필 이미지 규칙
+    match /profile-images/{userId}/{imageFile} {
+      // 읽기: 모든 인증된 사용자
+      allow read: if request.auth != null;
+      
+      // 쓰기: 본인의 프로필 이미지만
+      allow write: if request.auth != null 
+                   && request.auth.uid == userId
+                   && request.resource.size < 10 * 1024 * 1024  // 10MB 제한
+                   && request.resource.contentType.matches('image/(jpeg|jpg|png|webp|gif)');
+      
+      // 삭제: 본인의 프로필 이미지만
+      allow delete: if request.auth != null 
+                    && request.auth.uid == userId;
+    }
+    
+    // 게시글 이미지 규칙 (향후 확장용)
+    match /post-images/{postId}/{imageFile} {
+      allow read: if request.auth != null;
+      
+      allow write: if request.auth != null 
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/(jpeg|jpg|png|webp|gif)');
+      
+      allow delete: if request.auth != null;
+    }
+    
+    // 기타 파일은 기본적으로 거부
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
